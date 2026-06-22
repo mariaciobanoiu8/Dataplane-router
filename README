@@ -1,0 +1,44 @@
+Ciobanoiu Maria 324CC
+
+Subiect 1 - Procesul de dirijare (Forwarding)
+
+Routerul primeste pachete IPv4 si le dirijeaza catre destinatie:
+- Verifica adresa MAC destinatie (trebuie sa fie a interfetei sau broadcast), altfel arunca pachetul.
+- Verifica checksum-ul IP, daca difera pachetul este aruncat.
+- Daca TTL <= 1, arunca pachetul si trimite ICMP Time Exceeded catre sursa. Altfel, decrementeaza TTL.
+- Cauta ruta in tabela (LPM). Daca nu exista, trimite ICMP Destination Unreachable catre sursa.
+- Recalculeaza checksum-ul dupa decrementarea TTL.
+- Rescrie adresele MAC si trimite pachetul pe interfata corespunzatoare.
+
+In screenshot-ul subiect1.png se poate observa:
+- comanda ping -c 1 h1 rulata pe h0
+- pachetul a ajuns pe h1 cu TTL=63 (decrementat corect de la 64)
+- in Wireshark sunt vizibile ICMP Echo request si Echo reply, precum si schimbul ARP care a avut loc pentru determinarea adresei MAC
+
+Subiect 2 - Longest Prefix Match eficient (Trie)
+
+In loc de cautare liniara prin toate intrarile din tabela de rutare (complexitate O(n)), am implementat LPM folosind un trie binar, unde fiecare nod are doi copii (0 si 1), corespunzatori bitilor din adresa IP. Astfel, complexitatea scade la O(32) <=> O(1)
+
+
+Subiect 3 - Protocolul ARP
+
+- La ARP request primit: routerul trimite ARP reply cu adresa MAC a interfetei.
+- La forward fara MAC cunoscut: pachetul e pus in coada, se trimite ARP request broadcast.
+- La ARP reply primit: se adauga in cache, se trimit pachetele din coada cu next hop-ul respectiv.
+
+In screenshot-ul subiect3.png se poate observa:
+- comanda arping -c 1 h1 rulata pe h0
+- in Wireshark este vizibil ARP request de tip broadcast trimis de router (opcode: request, sender IP: 192.168.0.2, target IP: 192.168.1.2)
+- in terminalul routerului se vede ca a primit pachetul ARP si a trimis un ARP request
+
+Subiect 4 - Protocolul ICMP
+
+- Echo Reply: la Echo Request destinat routerului, trimite reply cu adresele inversate.
+- Time Exceeded: la TTL <= 1, trimite ICMP type 11 cu headerul IP original + primii 8 octeti din payload.
+- Destination Unreachable: la ruta lipsa, trimite ICMP type 3 cu headerul IP original + primii 8 octeti din payload.
+
+In screenshot-ul subiect4.png se poate observa:
+- comanda ping -t 1 -c 1 h1 rulata pe h0 (TTL=1)
+- raspunsul "Time to live exceeded" primit pe h0
+- in Wireshark este vizibil pachetul ICMP Time-to-live exceeded (type 11) trimis de router catre h0
+- in terminalul routerului se vede mesajul "Time exceeded" afisat la procesarea pachetului
